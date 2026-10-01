@@ -10,4 +10,5 @@ node_modules/
 dist/
 backend/mukuru.db
 backend/mukuru_lite.db
+mukuru_ussd.db*
 *.egg-info/
