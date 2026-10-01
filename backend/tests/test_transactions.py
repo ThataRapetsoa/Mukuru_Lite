@@ -28,8 +28,8 @@ def test_quote_uses_decimal_strings_and_server_fee(client, user_and_recipient):
 	).quantize(Decimal("0.01"))
 
 
-def test_create_is_idempotent_and_snapshots_rate(client, user_and_recipient):
-	user, recipient = user_and_recipient
+def test_create_is_idempotent_and_snapshots_rate(client, funded_user_and_recipient):
+	user, recipient = funded_user_and_recipient
 	payload = transaction_payload(user, recipient)
 	first = client.post("/transactions", json=payload)
 	replay = client.post("/transactions", json=payload)
@@ -44,8 +44,8 @@ def test_create_is_idempotent_and_snapshots_rate(client, user_and_recipient):
 	assert [event["status"] for event in tracker["events"]] == ["PENDING"]
 
 
-def test_idempotency_conflict_and_amount_contract(client, user_and_recipient):
-	user, recipient = user_and_recipient
+def test_idempotency_conflict_and_amount_contract(client, funded_user_and_recipient):
+	user, recipient = funded_user_and_recipient
 	payload = transaction_payload(user, recipient)
 	assert client.post("/transactions", json=payload).status_code == 201
 	conflict = client.post("/transactions", json=transaction_payload(user, recipient, source_amount="101.00"))
@@ -57,8 +57,8 @@ def test_idempotency_conflict_and_amount_contract(client, user_and_recipient):
 	assert scientific_amount.status_code == 422
 
 
-def test_lifecycle_events_and_terminal_state(client, user_and_recipient):
-	user, recipient = user_and_recipient
+def test_lifecycle_events_and_terminal_state(client, funded_user_and_recipient):
+	user, recipient = funded_user_and_recipient
 	created = client.post("/transactions", json=transaction_payload(user, recipient)).json()
 	transaction_id = created["id"]
 
@@ -74,8 +74,8 @@ def test_lifecycle_events_and_terminal_state(client, user_and_recipient):
 	]
 
 
-def test_cancel_and_failure_lifecycle_branches(client, user_and_recipient):
-	user, recipient = user_and_recipient
+def test_cancel_and_failure_lifecycle_branches(client, funded_user_and_recipient):
+	user, recipient = funded_user_and_recipient
 	cancelled = client.post(
 		"/transactions",
 		json=transaction_payload(user, recipient, idempotency_key="cancel-001"),
@@ -108,8 +108,8 @@ def test_recipient_must_belong_to_sending_user(client, user_and_recipient):
 	assert response.status_code == 404
 
 
-def test_status_change_creates_notification(client, user_and_recipient):
-	user, recipient = user_and_recipient
+def test_status_change_creates_notification(client, funded_user_and_recipient):
+	user, recipient = funded_user_and_recipient
 	created = client.post("/transactions", json=transaction_payload(user, recipient)).json()
 	changed = client.patch(
 		f"/transactions/{created['id']}/status",

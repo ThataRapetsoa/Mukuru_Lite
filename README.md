@@ -32,4 +32,6 @@ The API is available at `http://127.0.0.1:8000`; interactive documentation is at
 
 Run the backend tests from `backend/` with `python -m pytest -q`.
 
+To test a transfer locally, create a user and recipient, add demo funds with `POST /balances/deposit`, check the balance with `GET /balances?user_id=...`, then send a transfer. Deposits are simulated and do not move real money.
+
 The backend has no authentication, connected payment rails, or production FX feed. Its fee and rates are deterministic demo policies and must not be used to move real funds.

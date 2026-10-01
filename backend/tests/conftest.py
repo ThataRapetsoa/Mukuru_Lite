@@ -51,3 +51,16 @@ def user_and_recipient(client):
 	})
 	assert recipient_response.status_code == 201
 	return user, recipient_response.json()
+
+
+@pytest.fixture
+def funded_user_and_recipient(client, user_and_recipient):
+	user, recipient = user_and_recipient
+	response = client.post("/balances/deposit", json={
+		"user_id": user["id"],
+		"currency": "USD",
+		"amount": "10000.00",
+		"idempotency_key": "test-initial-funding",
+	})
+	assert response.status_code == 201
+	return user, recipient

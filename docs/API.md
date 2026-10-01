@@ -41,6 +41,15 @@ User creation: `{"full_name":"Amina Ndlovu","phone_number":"+27123456789","email
 
 Recipient creation: `{"user_id":"uuid","full_name":"Tariro Moyo","phone_number":"+263771234567","country":"ZW","payout_method":"mobile_money","payout_details":"EcoCash 0771234567"}`. `payout_details` is optional and should contain no sensitive credentials.
 
+### Balances
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/balances?user_id={id}` | List a user's available balances by currency |
+| `POST` | `/balances/deposit` | Add demo funds to a user's wallet |
+
+Demo deposit request: `{"user_id":"uuid","currency":"USD","amount":"500.00","idempotency_key":"demo-top-up-001"}`. The idempotency key is required; an identical retry returns the original deposit result, while reusing the key with different data returns `409`. This endpoint simulates funding for local testing and does not represent an actual payment or cash deposit.
+
 ### FX and transactions
 
 | Method | Path | Purpose |
@@ -77,6 +86,9 @@ Schedule request: `{"user_id":"uuid","recipient_id":"uuid","source_amount":"50.0
 - Quote and create share the same fee and FX service. Create recomputes the quote and persists its rate, fee, debit, and recipient amount as an immutable transaction snapshot.
 - SQLite stores monetary values as fixed-point decimal text, not floating-point values. API amounts are decimal strings with at most two fractional digits; rates are returned with eight decimal places.
 - A transaction creation produces its initial `PENDING` event and notification. Each permitted status transition appends an event and notification in the same database transaction.
+- Sending requires an available wallet balance in the source currency. The backend atomically debits `total_debit` (principal plus fee) in the same transaction that creates the transfer; insufficient funds return `409` without creating a transfer. Quotes do not reserve funds.
+- A permitted transition to `FAILED` or `CANCELLED` refunds the full debit once. Other terminal states, including `COLLECTED`, do not refund.
+- Wallet writes are recorded in an append-only balance ledger. Replayed transfer or deposit idempotency keys do not apply a second debit or credit.
 - Scheduled payments persist a future intent only. This API does not execute transfers automatically.
 
 These rules are for local development and demonstrations only. They are not representative of a production Mukuru fee schedule, live market pricing, or payment execution.
@@ -88,9 +100,11 @@ Persist these SQLite tables. IDs are UUID strings; timestamps are UTC.
 | Table | Core fields |
 | --- | --- |
 | `users` | `id`, `full_name`, `phone_number` (unique), `email`, `created_at` |
+| `wallet_balances` | `id`, `user_id` -> users, `currency`, `available_balance`, `updated_at`; unique per user and currency |
 | `recipients` | `id`, `user_id` -> users, `full_name`, `phone_number`, `country`, `payout_method`, `payout_details`, `created_at` |
 | `transactions` | `id`, `user_id` -> users, `recipient_id` -> recipients, `idempotency_key` (unique, optional), `source_amount`, `source_currency`, `fee_amount`, `total_debit`, `target_currency`, `fx_rate`, `recipient_amount`, `status`, `created_at` |
 | `transaction_events` | `id`, `transaction_id` -> transactions, `status`, `note`, `created_at` |
+| `balance_ledger_entries` | `id`, `user_id` -> users, optional `transaction_id` -> transactions, `currency`, `entry_type`, `amount`, `balance_after`, optional `idempotency_key`, `created_at` |
 | `scheduled_payments` | `id`, `user_id` -> users, `recipient_id` -> recipients, `source_amount`, `source_currency`, `target_currency`, `frequency`, `next_run_at`, `active`, `created_at` |
 | `notifications` | `id`, `user_id` -> users, optional `transaction_id` -> transactions, `title`, `message`, `read`, `created_at` |
 
