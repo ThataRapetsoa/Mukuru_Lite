@@ -32,6 +32,10 @@ export const api = {
   updateTransactionStatus: (id, data) => request(`/transactions/${id}/status`, { method: "PATCH", body: JSON.stringify(data) }),
   cancelTransaction: (id) => request(`/transactions/${id}/cancel`, { method: "POST" }),
 
+  // Balances
+  getBalances: (userId) => request(`/balances?user_id=${userId}`),
+  depositBalance: (data) => request("/balances/deposit", { method: "POST", body: JSON.stringify(data) }),
+
   // FX
   getFxRate: (from, to) => request(`/fx/rate?from_currency=${from}&to_currency=${to}`),
 

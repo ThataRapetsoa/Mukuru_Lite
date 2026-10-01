@@ -10,6 +10,7 @@ export default function SendMoney() {
   const navigate = useNavigate();
   const isOnline = useOnlineStatus();
   const [recipients, setRecipients] = useState([]);
+  const [balances, setBalances] = useState([]);
   const [selectedRecipient, setSelectedRecipient] = useState("");
   const [amount, setAmount] = useState("");
   const [sourceCurrency, setSourceCurrency] = useState("USD");
@@ -20,6 +21,7 @@ export default function SendMoney() {
 
   useEffect(() => {
     api.listRecipients(user.id).then(setRecipients).catch(console.error);
+    api.getBalances(user.id).then(setBalances).catch(console.error);
   }, [user.id]);
 
   useEffect(() => {
@@ -46,6 +48,11 @@ export default function SendMoney() {
     return () => clearTimeout(timer);
   }, [selectedRecipient, amount, sourceCurrency, targetCurrency, user.id]);
 
+  const walletBalance = balances.find((b) => b.currency === sourceCurrency);
+  const availableFunds = walletBalance ? parseFloat(walletBalance.available_balance) : 0;
+  const totalDebit = quote ? parseFloat(quote.total_debit) : 0;
+  const insufficientFunds = quote && totalDebit > availableFunds;
+
   const handleSend = async () => {
     setLoading(true);
     setError("");
@@ -60,7 +67,6 @@ export default function SendMoney() {
         });
         navigate(`/transactions/${txn.id}`);
       } else {
-        // Offline: queue the transaction locally
         const queuedTxn = {
           id: `offline_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
           user_id: user.id,
@@ -156,6 +162,12 @@ export default function SendMoney() {
           </select>
         </div>
 
+        {walletBalance && (
+          <div className="balance-info">
+            Available: {sourceCurrency} {walletBalance.available_balance}
+          </div>
+        )}
+
         {quote && (
           <div className="quote-card">
             <h4>Quote Summary</h4>
@@ -182,12 +194,18 @@ export default function SendMoney() {
           </div>
         )}
 
+        {insufficientFunds && (
+          <div className="error-message">
+            Insufficient funds. You need {sourceCurrency} {totalDebit} but only have {sourceCurrency} {availableFunds.toFixed(2)}.
+          </div>
+        )}
+
         {error && <div className="error-message">{error}</div>}
 
         <button
           className="btn btn-primary btn-large"
           onClick={handleSend}
-          disabled={!quote || loading || !selectedRecipient}
+          disabled={!quote || loading || !selectedRecipient || insufficientFunds}
         >
           {loading ? "Processing..." : isOnline ? "Send Money" : "Queue for Sending"}
         </button>

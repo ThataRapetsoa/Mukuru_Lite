@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
 import CurrencyCalculator from "../components/CurrencyCalculator";
+import BalanceCard from "../components/BalanceCard";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import { syncQueue, getQueue } from "../services/syncService";
 
@@ -12,20 +13,23 @@ export default function Dashboard() {
   const [transactions, setTransactions] = useState([]);
   const [recipients, setRecipients] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [balances, setBalances] = useState([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [queuedCount, setQueuedCount] = useState(0);
 
   const loadData = useCallback(async () => {
     try {
-      const [txns, recips, notifs] = await Promise.all([
+      const [txns, recips, notifs, bals] = await Promise.all([
         api.listTransactions(user.id),
         api.listRecipients(user.id),
         api.listNotifications(user.id),
+        api.getBalances(user.id),
       ]);
       setTransactions(txns.slice(0, 3));
       setRecipients(recips);
       setNotifications(notifs.filter((n) => !n.read).slice(0, 3));
+      setBalances(bals);
     } catch (err) {
       console.error(err);
     } finally {
@@ -65,6 +69,8 @@ export default function Dashboard() {
         <h2>Welcome back, {firstName}</h2>
         <p>What would you like to do today?</p>
       </div>
+
+      <BalanceCard balances={balances} onDeposit={loadData} />
 
       <CurrencyCalculator />
 
