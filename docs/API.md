@@ -77,7 +77,7 @@ Status request: `{"status":"IN_TRANSIT","note":"Handed to payout partner"}`. Onl
 | `GET` | `/notifications?user_id={id}` | List a user's notifications |
 | `PATCH` | `/notifications/{notification_id}/read` | Mark a notification as read |
 
-Schedule request: `{"user_id":"uuid","recipient_id":"uuid","source_amount":"50.00","source_currency":"USD","target_currency":"ZAR","frequency":"MONTHLY","next_run_at":"2026-11-01T09:00:00Z"}`. Supported frequencies are `WEEKLY` and `MONTHLY`. A schedule stores intent; this starter does not run automatic payment jobs.
+Schedule request: `{"user_id":"uuid","recipient_id":"uuid","source_amount":"50.00","source_currency":"USD","target_currency":"ZAR","frequency":"ONCE","next_run_at":"2026-11-01T09:00:00Z"}`. Supported frequencies are `ONCE`, `WEEKLY`, and `MONTHLY`. `next_run_at` must be a future UTC timestamp. The date-based UI runs payments at 09:00 in the device's local timezone; the API accepts the resulting UTC timestamp.
 
 ## Implemented demo financial rules
 
@@ -89,7 +89,8 @@ Schedule request: `{"user_id":"uuid","recipient_id":"uuid","source_amount":"50.0
 - Sending requires an available wallet balance in the source currency. The backend atomically debits `total_debit` (principal plus fee) in the same transaction that creates the transfer; insufficient funds return `409` without creating a transfer. Quotes do not reserve funds.
 - A permitted transition to `FAILED` or `CANCELLED` refunds the full debit once. Other terminal states, including `COLLECTED`, do not refund.
 - Wallet writes are recorded in an append-only balance ledger. Replayed transfer or deposit idempotency keys do not apply a second debit or credit.
-- Scheduled payments persist a future intent only. This API does not execute transfers automatically.
+- Scheduled payments execute from a backend polling worker every 15 seconds. One-time schedules deactivate after their run; weekly and monthly schedules advance to the next future occurrence. A schedule that cannot execute due to insufficient funds is paused and produces a notification. The worker uses a schedule-and-occurrence idempotency key so restarts do not duplicate a transfer.
+- Scheduled payments do not reserve funds in advance. The normal transaction balance check and debit occur when the payment becomes due.
 
 These rules are for local development and demonstrations only. They are not representative of a production Mukuru fee schedule, live market pricing, or payment execution.
 

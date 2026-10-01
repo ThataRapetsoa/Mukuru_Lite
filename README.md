@@ -34,4 +34,6 @@ Run the backend tests from `backend/` with `python -m pytest -q`.
 
 To test a transfer locally, create a user and recipient, add demo funds with `POST /balances/deposit`, check the balance with `GET /balances?user_id=...`, then send a transfer. Deposits are simulated and do not move real money.
 
+Scheduled payments can be created from the app's **Schedule** tab. The backend worker checks for due payments every 15 seconds while the API is running; it sends once schedules on their selected date and advances weekly/monthly schedules.
+
 The backend has no authentication, connected payment rails, or production FX feed. Its fee and rates are deterministic demo policies and must not be used to move real funds.

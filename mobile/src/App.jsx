@@ -10,6 +10,7 @@ import TransactionHistory from "./pages/TransactionHistory";
 import TransactionDetail from "./pages/TransactionDetail";
 import Profile from "./pages/Profile";
 import Notifications from "./pages/Notifications";
+import ScheduledPayments from "./pages/ScheduledPayments";
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -32,6 +33,7 @@ export default function App() {
       <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/send" element={<SendMoney />} />
+        <Route path="/scheduled-payments" element={<ScheduledPayments />} />
         <Route path="/recipients" element={<Recipients />} />
         <Route path="/recipients/new" element={<AddRecipient />} />
         <Route path="/transactions" element={<TransactionHistory />} />
