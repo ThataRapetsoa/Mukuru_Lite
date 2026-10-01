@@ -53,6 +53,17 @@ class User(Base):
 	created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
 
 
+class WalletBalance(Base):
+	__tablename__ = "wallet_balances"
+	__table_args__ = (UniqueConstraint("user_id", "currency", name="uq_wallet_user_currency"),)
+
+	id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+	user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+	currency: Mapped[str] = mapped_column(String(3), nullable=False)
+	available_balance: Mapped[Decimal] = mapped_column(DecimalString(2), nullable=False, default=Decimal("0.00"))
+	updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)
+
+
 class Recipient(Base):
 	__tablename__ = "recipients"
 
@@ -99,6 +110,25 @@ class TransactionEvent(Base):
 	transaction_id: Mapped[str] = mapped_column(ForeignKey("transactions.id", ondelete="CASCADE"), nullable=False, index=True)
 	status: Mapped[str] = mapped_column(String(32), nullable=False)
 	note: Mapped[str | None] = mapped_column(String(500))
+	created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+
+class BalanceLedgerEntry(Base):
+	__tablename__ = "balance_ledger_entries"
+	__table_args__ = (
+		UniqueConstraint("idempotency_key", name="uq_balance_ledger_idempotency_key"),
+		UniqueConstraint("transaction_id", "entry_type", name="uq_balance_ledger_transaction_type"),
+		CheckConstraint("entry_type IN ('DEPOSIT', 'DEBIT', 'REFUND')", name="ck_balance_ledger_entry_type"),
+	)
+
+	id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+	user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True)
+	transaction_id: Mapped[str | None] = mapped_column(ForeignKey("transactions.id", ondelete="RESTRICT"), index=True)
+	currency: Mapped[str] = mapped_column(String(3), nullable=False)
+	entry_type: Mapped[str] = mapped_column(String(16), nullable=False)
+	amount: Mapped[Decimal] = mapped_column(DecimalString(2), nullable=False)
+	balance_after: Mapped[Decimal] = mapped_column(DecimalString(2), nullable=False)
+	idempotency_key: Mapped[str | None] = mapped_column(String(128))
 	created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
 
 

@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import fx, notifications, recipients, scheduled_payments, transactions, users
+from app.api import balances, fx, notifications, recipients, scheduled_payments, transactions, users
 from app.database.database import create_tables
 
 
@@ -27,7 +27,7 @@ def create_app(initialize_db: bool = True) -> FastAPI:
 		allow_methods=["*"],
 		allow_headers=["*"],
 	)
-	for route in (users.router, recipients.router, fx.router, transactions.router,
+	for route in (users.router, recipients.router, balances.router, fx.router, transactions.router,
 				  scheduled_payments.router, notifications.router):
 		application.include_router(route)
 

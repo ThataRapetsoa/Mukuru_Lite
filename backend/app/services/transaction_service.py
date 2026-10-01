@@ -9,6 +9,7 @@ from app.database.models import Recipient, Transaction, TransactionEvent, User, 
 from app.schemas.transaction import TransactionQuoteRequest
 from app.services.fee_service import calculate_fee
 from app.services.fx_service import get_rate
+from app.services.balance_service import debit_transaction_balance, refund_transaction_balance
 from app.services.notification_service import create_transaction_notification
 
 
@@ -88,6 +89,13 @@ def create_transaction(session: Session, request: TransactionQuoteRequest) -> Tr
 	)
 	session.add(transaction)
 	session.flush()
+	debit_transaction_balance(
+		session,
+		request.user_id,
+		request.source_currency,
+		transaction.total_debit,
+		transaction.id,
+	)
 	session.add(TransactionEvent(transaction_id=transaction.id, status="PENDING", note="Transfer created"))
 	create_transaction_notification(session, transaction)
 	try:
@@ -131,6 +139,14 @@ def transition_transaction(
 			detail=f"Transition from {transaction.status} to {new_status} is not allowed",
 		)
 	transaction.status = new_status
+	if new_status in {"FAILED", "CANCELLED"}:
+		refund_transaction_balance(
+			session,
+			transaction.user_id,
+			transaction.source_currency,
+			transaction.total_debit,
+			transaction.id,
+		)
 	session.add(TransactionEvent(transaction_id=transaction.id, status=new_status, note=note))
 	create_transaction_notification(session, transaction)
 	session.commit()
