@@ -1,5 +1,6 @@
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import LanguageSelector from "./LanguageSelector";
 
 export default function Header() {
   const { user } = useAuth();
@@ -13,7 +14,8 @@ export default function Header() {
         <span className="brand-logo">M</span>
         <span className="brand-name">Mukuru</span>
       </div>
-      <div className="header-user">
+      <div className="header-actions">
+        <LanguageSelector />
         <span className="header-greeting">Hi, {firstName}</span>
         <button
           className="header-profile-btn"

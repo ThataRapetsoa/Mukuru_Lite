@@ -1,34 +1,61 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
+import CurrencyCalculator from "../components/CurrencyCalculator";
+import { useOnlineStatus } from "../hooks/useOnlineStatus";
+import { syncQueue, getQueue } from "../services/syncService";
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const isOnline = useOnlineStatus();
   const [transactions, setTransactions] = useState([]);
   const [recipients, setRecipients] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [queuedCount, setQueuedCount] = useState(0);
+
+  const loadData = useCallback(async () => {
+    try {
+      const [txns, recips, notifs] = await Promise.all([
+        api.listTransactions(user.id),
+        api.listRecipients(user.id),
+        api.listNotifications(user.id),
+      ]);
+      setTransactions(txns.slice(0, 3));
+      setRecipients(recips);
+      setNotifications(notifs.filter((n) => !n.read).slice(0, 3));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [user.id]);
 
   useEffect(() => {
-    async function load() {
-      try {
-        const [txns, recips, notifs] = await Promise.all([
-          api.listTransactions(user.id),
-          api.listRecipients(user.id),
-          api.listNotifications(user.id),
-        ]);
-        setTransactions(txns.slice(0, 3));
-        setRecipients(recips);
-        setNotifications(notifs.filter((n) => !n.read).slice(0, 3));
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
+    loadData();
+  }, [loadData]);
+
+  // Auto-sync when coming back online
+  useEffect(() => {
+    if (!isOnline) {
+      setQueuedCount(getQueue().length);
+      return;
     }
-    load();
-  }, [user.id]);
+
+    const queue = getQueue();
+    if (queue.length === 0) return;
+
+    setSyncing(true);
+    syncQueue()
+      .then(() => {
+        setQueuedCount(0);
+        loadData();
+      })
+      .catch(console.error)
+      .finally(() => setSyncing(false));
+  }, [isOnline, loadData]);
 
   const firstName = user?.full_name?.split(" ")[0] || "there";
 
@@ -38,6 +65,8 @@ export default function Dashboard() {
         <h2>Welcome back, {firstName}</h2>
         <p>What would you like to do today?</p>
       </div>
+
+      <CurrencyCalculator />
 
       <div className="quick-actions">
         <Link to="/send" className="quick-action-card">
@@ -70,6 +99,26 @@ export default function Dashboard() {
           <span>View History</span>
         </Link>
       </div>
+
+      {syncing && (
+        <div className="sync-notice">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="spin">
+            <polyline points="23 4 23 10 17 10" />
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+          </svg>
+          <span>Syncing your queued transactions...</span>
+        </div>
+      )}
+
+      {queuedCount > 0 && !syncing && (
+        <div className="queued-notice">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+          </svg>
+          <span>{queuedCount} transaction{queuedCount > 1 ? "s" : ""} pending sync</span>
+        </div>
+      )}
 
       {notifications.length > 0 && (
         <div className="dashboard-section">

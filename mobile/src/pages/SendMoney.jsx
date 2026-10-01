@@ -2,10 +2,13 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
+import { useOnlineStatus } from "../hooks/useOnlineStatus";
+import { addToQueue } from "../services/syncService";
 
 export default function SendMoney() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const isOnline = useOnlineStatus();
   const [recipients, setRecipients] = useState([]);
   const [selectedRecipient, setSelectedRecipient] = useState("");
   const [amount, setAmount] = useState("");
@@ -47,14 +50,31 @@ export default function SendMoney() {
     setLoading(true);
     setError("");
     try {
-      const txn = await api.createTransaction({
-        user_id: user.id,
-        recipient_id: selectedRecipient,
-        source_amount: amount,
-        source_currency: sourceCurrency,
-        target_currency: targetCurrency,
-      });
-      navigate(`/transactions/${txn.id}`);
+      if (isOnline) {
+        const txn = await api.createTransaction({
+          user_id: user.id,
+          recipient_id: selectedRecipient,
+          source_amount: amount,
+          source_currency: sourceCurrency,
+          target_currency: targetCurrency,
+        });
+        navigate(`/transactions/${txn.id}`);
+      } else {
+        // Offline: queue the transaction locally
+        const queuedTxn = {
+          id: `offline_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+          user_id: user.id,
+          recipient_id: selectedRecipient,
+          source_amount: amount,
+          source_currency: sourceCurrency,
+          target_currency: targetCurrency,
+          status: "PENDING",
+          created_at: new Date().toISOString(),
+          _offline: true,
+        };
+        addToQueue(queuedTxn);
+        navigate("/transactions");
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -65,6 +85,20 @@ export default function SendMoney() {
   return (
     <div className="page send-money-page">
       <h2>Send Money</h2>
+      {!isOnline && (
+        <div className="offline-notice">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <line x1="1" y1="1" x2="23" y2="23" />
+            <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" />
+            <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39" />
+            <path d="M10.71 5.05A16 16 0 0 1 22.58 9" />
+            <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88" />
+            <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+            <line x1="12" y1="20" x2="12.01" y2="20" />
+          </svg>
+          <span>You're offline. This transaction will be queued and sent when you reconnect.</span>
+        </div>
+      )}
       <div className="send-form">
         <div className="form-group">
           <label>Recipient</label>
@@ -155,7 +189,7 @@ export default function SendMoney() {
           onClick={handleSend}
           disabled={!quote || loading || !selectedRecipient}
         >
-          {loading ? "Processing..." : "Send Money"}
+          {loading ? "Processing..." : isOnline ? "Send Money" : "Queue for Sending"}
         </button>
       </div>
     </div>
