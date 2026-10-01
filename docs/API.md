@@ -70,6 +70,17 @@ Status request: `{"status":"IN_TRANSIT","note":"Handed to payout partner"}`. Onl
 
 Schedule request: `{"user_id":"uuid","recipient_id":"uuid","source_amount":"50.00","source_currency":"USD","target_currency":"ZAR","frequency":"MONTHLY","next_run_at":"2026-11-01T09:00:00Z"}`. Supported frequencies are `WEEKLY` and `MONTHLY`. A schedule stores intent; this starter does not run automatic payment jobs.
 
+## Implemented demo financial rules
+
+- Fees are calculated by the backend as 1.5% of the source principal, rounded half-up to cents, with a minimum fee of `1.00` in the source currency. The fee is added to the sender's debit; only the principal is converted to the recipient amount.
+- FX uses a fixed set of mock base pairs. The mock applies a small deterministic adjustment based on the current ten-minute UTC bucket, so rates vary over time but remain reproducible for a given bucket. Reverse pairs are calculated as reciprocals of the adjusted forward rate.
+- Quote and create share the same fee and FX service. Create recomputes the quote and persists its rate, fee, debit, and recipient amount as an immutable transaction snapshot.
+- SQLite stores monetary values as fixed-point decimal text, not floating-point values. API amounts are decimal strings with at most two fractional digits; rates are returned with eight decimal places.
+- A transaction creation produces its initial `PENDING` event and notification. Each permitted status transition appends an event and notification in the same database transaction.
+- Scheduled payments persist a future intent only. This API does not execute transfers automatically.
+
+These rules are for local development and demonstrations only. They are not representative of a production Mukuru fee schedule, live market pricing, or payment execution.
+
 ## Persistence entities
 
 Persist these SQLite tables. IDs are UUID strings; timestamps are UTC.

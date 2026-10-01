@@ -9,3 +9,5 @@ htmlcov/
 node_modules/
 dist/
 backend/mukuru.db
+backend/mukuru_lite.db
+*.egg-info/

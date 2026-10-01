@@ -1,13 +1,13 @@
 # Mukuru Financial Ecosystem
 
-This repository contains the agreed starter structure and shared contract. Implementation and tests are intentionally empty for the team to build.
+This repository contains the shared mobile, accessibility, and FastAPI backend for a local Mukuru Lite demo. The backend owns the financial calculations and persisted transfer snapshots.
 
 ## Work areas
 
-- `backend/`: FastAPI and SQLite structure for the API, schemas, persistence, financial services, and tests.
+- `backend/`: FastAPI and SQLite API, schemas, persistence, financial services, and tests.
 - `mobile/`: React/Vite structure for customer screens, reusable components, and API helpers.
 - `accessibility/`: USSD, SMS, translation, and offline-sync structure.
-- `docs/API.md`: proposed endpoint, data, status, and ownership contract. Agree on it as a team before implementation.
+- `docs/API.md`: endpoint, data, status, and ownership contract plus the implemented mock financial rules.
 
 ## Ownership
 
@@ -19,4 +19,17 @@ This repository contains the agreed starter structure and shared contract. Imple
 
 Use `main` as the integration branch. Create work branches as `feature/backend-<task>`, `feature/mobile-<task>`, or `feature/accessibility-<task>`, then merge through reviewed pull requests.
 
-The source placeholders are not runnable yet. This project is not connected to payment rails or a production FX feed and must not be used to move real funds.
+## Run the backend
+
+From `backend/`, install the runtime and test dependencies and start the API:
+
+```powershell
+python -m pip install -e ".[dev]"
+uvicorn app.main:app --reload
+```
+
+The API is available at `http://127.0.0.1:8000`; interactive documentation is at `/docs`. By default, SQLite persists to `backend/mukuru_lite.db`. Set `DATABASE_URL` to use a different SQLAlchemy-supported database URL.
+
+Run the backend tests from `backend/` with `python -m pytest -q`.
+
+The backend has no authentication, connected payment rails, or production FX feed. Its fee and rates are deterministic demo policies and must not be used to move real funds.
